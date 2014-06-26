@@ -1,7 +1,7 @@
 {
 	"parentProxyHost" : "127.0.0.1",
 	"parentProxyPort" : 1080,
-	"parentProxyTypes" : ["socks", "connect"],
+	"parentProxyTypes" : ["none", "socks", "connect"],
 	"parentProxyType" : "socks",
 	"proxyHost" : "127.0.0.1",
 	"proxyPort" : 1081,
