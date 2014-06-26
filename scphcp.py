@@ -104,7 +104,7 @@ class Tunnel(Pipe):
             self.setSockPair(parent, client)
             self.pipeData()
 
-        def sslHandshake():
+        def sslHandshake(clientData, parentData):
 
             def pipeHello(paramList):
                 sockIn, inData, sockOut = paramList
@@ -120,8 +120,9 @@ class Tunnel(Pipe):
                 return inData[packetLen : ]
 
             clientData = pipeHello(self.client, clientData, self.parent)
-            parentData = pipeHello(self.parent, self,parentData, self,client)
+            parentData = pipeHello(self.parent, parentData, self,client)
             raise Exception('Not implemented yet')  #   TODO:
+            return clientData, parentData
 
         self.parent = socket.socket()
         try:
@@ -143,7 +144,7 @@ class Tunnel(Pipe):
                 clientData = self.client.recv(65536)
             if clientData[0] != '\x22':    #   Not SSL
                 startPipe()
-            sslHandshake()
+            clientData, parentData = sslHandshake(clientData, parentData)
             startPipe()
         except Exception:
             logging.exception('Exception in Tunnel.run:')
