@@ -7,8 +7,41 @@ except ImportError:
     import socket
     from threading import Thread as Concurrent
     print('Cannot find gevent, using threading')
+from threading import Lock
 import sys
 import re
+import pickle
+
+class PublicKeyStore(object):
+
+    def __init__(self, config):
+        try:
+            f = open(config['pubKeysFilename'], 'r')
+            self.keys = pickle.load(f)
+            f.close()
+        except IOError:
+            self.keys = {}
+        self.config = config
+        self.lock = Lock()
+
+    def getKey(self, hostname, port):
+        return self.keys[hostname][port]
+
+    def storeKey(self, hostname, port, key):
+        self.keys[hostname][port] = key
+        self.lock.acquire()
+        try:
+            os.remove(config['pubKeysFilename'] + '.bak')
+        except Exception:
+            pass
+        try:
+            os.rename(config['pubKeysFilename'], config['pubKeysFilename'] + '.bak')
+        except Exception:
+            pass
+        f = open(config['pubKeysFilename'], 'w')
+        pickle.dump(self.keys, f)
+        f.close()
+        self.lock.release()
 
 class ProxyType:
     NONE = 0
@@ -45,10 +78,11 @@ class Pipe(Concurrent):
 
 class Tunnel(Pipe):
 
-    def __init__(self, config, client):
+    def __init__(self, config, client, pubKeyStore):
         Pipe.__init__(self)
         self.config = config
         self.client = client
+        self.pubKeyStore = pubKeyStore
 
     def run(self):
 
@@ -183,10 +217,11 @@ class Main(object):
         server = socket.socket()
         server.bind((config['proxyHost'], config['proxyPort']))
         server.listen(50)
+        pubKeyStore = PublicKeyStore(config)
         while True:
             try:
                 client, addr = server.accept()
-                Tunnel(self.config, client).start()
+                Tunnel(self.config, client, pubKeyStore).start()
             except Exception:
                 logging.exception('Exception in Main.start:')
 

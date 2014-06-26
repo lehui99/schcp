@@ -6,5 +6,6 @@
 	"proxyHost" : "127.0.0.1",
 	"proxyPort" : 1081,
 	"logLevel" : "WARNING",
-	"logFilename" : "scphcp.log"
+	"logFilename" : "scphcp.log",
+	"pubKeysFilename" : "pubkeys"
 }
