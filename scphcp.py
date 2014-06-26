@@ -93,36 +93,36 @@ class Tunnel(Pipe):
             self.client.send(response)
             return clientData, parentData
 
-        def startPipe():
+        def startClientParentPipe():
             if clientData != b'':
                 self.parent.send(clientData)
+            pipe = Pipe()
+            pipe.setSockPair(self.client, self.parent)
+            pipe.start()
+
+        def startParentClientPipe():
             if parentData != b'':
                 self.client.send(parentData)
-            pipe = Pipe()
-            pipe.setSockPair(client, parent)
-            pipe.start()
-            self.setSockPair(parent, client)
+            self.setSockPair(self.parent, self.client)
             self.pipeData()
 
-        def sslHandshake(clientData, parentData):
+        def startPipe():
+            startClientParentPipe()
+            startParentClientPipe()
 
-            def pipeHello(paramList):
-                sockIn, inData, sockOut = paramList
-                missDataLen = 5 - len(inData)
-                if missDataLen > 0:
-                    inData += recvFully(sockIn, missDataLen)
-                helloLen = ord(inData[3]) << 8 | ord(inData[4])
-                missDataLen = 5 + helloLen - len(inData)
-                if missDataLen > 0:
-                    inData += recvFully(sockIn, missDataLen)
-                packetLen = 5 + helloLen
-                sockOut.send(inData[ : packetLen])
-                return inData[packetLen : ]
-
-            clientData = pipeHello(self.client, clientData, self.parent)
-            parentData = pipeHello(self.parent, parentData, self,client)
+        def sslCheckCertification(packet):
             raise Exception('Not implemented yet')  #   TODO:
-            return clientData, parentData
+
+        def sslGetPacket(sock, data):
+            missDataLen = 5 - len(data)
+            if missDataLen > 0:
+                data += recvFully(sock, missDataLen)
+            helloLen = ord(data[3]) << 8 | ord(data[4])
+            missDataLen = 5 + helloLen - len(data)
+            if missDataLen > 0:
+                data += recvFully(sock, missDataLen)
+            packetLen = 5 + helloLen
+            return data[ : packetLen], data[packetLen : ]
 
         self.parent = socket.socket()
         try:
@@ -142,10 +142,18 @@ class Tunnel(Pipe):
                 assert(False)
             if clientData == b'':
                 clientData = self.client.recv(65536)
-            if clientData[0] != '\x22':    #   Not SSL
+            if clientData[0] != '\x16':    #   Not SSL Handshake
                 startPipe()
-            clientData, parentData = sslHandshake(clientData, parentData)
-            startPipe()
+                return
+            startClientParentPipe()
+            while True:
+                packet, parentData = sslGetPacket(self.parent, parentData)
+                if parentData[0] == '\x17':    #   Start SSL Application Data
+                    self.client.send(packet)
+                    break
+                parentData = sslCheckCertification(packet)
+                self.client.send(packet)
+            startParentClientPipe()
         except Exception:
             logging.exception('Exception in Tunnel.run:')
         finally:
