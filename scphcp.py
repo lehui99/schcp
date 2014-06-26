@@ -111,14 +111,17 @@ class Tunnel(Pipe):
             startParentClientPipe()
 
         def sslCheckCertification(packet):
-            raise Exception('Not implemented yet')  #   TODO:
+            if packet[5] != b'\x0b':
+                return
+            certLen = (ord(packet[12]) << 16) | (ord(packet[13]) << 8) | ord(packet[14])
+            cert = packet[15 : 15 + certLen]
+            raise Exception('Not implemented yet')  #   TODO: verify certification
 
         def sslGetPacket(sock, data):
             missDataLen = 5 - len(data)
             if missDataLen > 0:
                 data += recvFully(sock, missDataLen)
-            helloLen = ord(data[3]) << 8 | ord(data[4])
-            missDataLen = 5 + helloLen - len(data)
+            missDataLen = 5 + ((ord(data[3]) << 8) | ord(data[4])) - len(data)
             if missDataLen > 0:
                 data += recvFully(sock, missDataLen)
             packetLen = 5 + helloLen
@@ -142,13 +145,13 @@ class Tunnel(Pipe):
                 assert(False)
             if clientData == b'':
                 clientData = self.client.recv(65536)
-            if clientData[0] != '\x16':    #   Not SSL Handshake
+            if clientData[0] != b'\x16':    #   Not SSL Handshake
                 startPipe()
                 return
             startClientParentPipe()
             while True:
                 packet, parentData = sslGetPacket(self.parent, parentData)
-                if parentData[0] == '\x17':    #   Start SSL Application Data
+                if parentData[0] == b'\x17':    #   Start SSL Application Data
                     self.client.send(packet)
                     break
                 parentData = sslCheckCertification(packet)
