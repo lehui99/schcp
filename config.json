@@ -1,10 +1,10 @@
 {
 	"parentProxyHost" : "127.0.0.1",
-	"parentProxyPort" : 1080,
+	"parentProxyPort" : 8118,
 	"parentProxyTypes" : ["none", "socks", "connect"],
-	"parentProxyType" : "socks",
+	"parentProxyType" : "connect",
 	"proxyHost" : "127.0.0.1",
-	"proxyPort" : 1081,
+	"proxyPort" : 8181,
 	"logLevel" : "WARNING",
 	"logFilename" : "scphcp.log",
 	"pubKeysFilename" : "pubkeys"

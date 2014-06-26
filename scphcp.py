@@ -109,9 +109,10 @@ class Tunnel(Pipe):
                     t = self.client.recv(65536)
                     if t == b'':
                         raise Exception('End connection in connectHandshake')
+                    buf += t
                     try:
                         idx = buf.index(endBytes, idx)
-                        idx += 4
+                        idx += len(endBytes)
                         return buf[ : idx], buf[idx : ]
                     except ValueError:
                         idx = len(buf) - len(endBytes) + 1
@@ -206,7 +207,7 @@ class Main(object):
             config['parentProxyType'] = ProxyType.NONE
         elif config['parentProxyType'] == 'socks':
             config['parentProxyType'] = ProxyType.SOCKS
-        elif config['parentProxyType'] == 'socks':
+        elif config['parentProxyType'] == 'connect':
             config['parentProxyType'] = ProxyType.CONNECT
         else:
             logging.error('Unknown parentProxyType %s', config['parentProxyType'])
@@ -215,9 +216,9 @@ class Main(object):
 
     def start(self):
         server = socket.socket()
-        server.bind((config['proxyHost'], config['proxyPort']))
+        server.bind((self.config['proxyHost'], self.config['proxyPort']))
         server.listen(50)
-        pubKeyStore = PublicKeyStore(config)
+        pubKeyStore = PublicKeyStore(self.config)
         while True:
             try:
                 client, addr = server.accept()
