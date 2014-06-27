@@ -16,7 +16,10 @@ class CertificationManagement(object):
             print(hostname)
 
     def removeHostname(self):
-        del self.certs[hostname.lower()]
+        sys.stdout.write('Input the hostname to be deleted: ')
+        sys.stdout.flush()
+        hostname = sys.stdin.readline().strip().lower()
+        del self.certs[hostname]
 
     def store(self):
         try:
@@ -37,6 +40,7 @@ class CertificationManagement(object):
 
     def quit(self):
         sys.stdout.write('Quit without Save? [Y/N]: ')
+        sys.stdout.flush()
         if sys.stdin.readline().strip().upper() != 'Y':
             return
         sys.exit()
@@ -54,6 +58,7 @@ class CertificationManagement(object):
 3. Save and Quit
 4. Quit without Save''')
             sys.stdout.write('Select function: ')
+            sys.stdout.flush()
             functionMap[int(sys.stdin.readline().strip())]()
 
 if __name__ == '__main__':
