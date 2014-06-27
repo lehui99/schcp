@@ -7,5 +7,5 @@
 	"proxyPort" : 8181,
 	"logLevel" : "WARNING",
 	"logFilename" : "scphcp.log",
-	"pubKeysFilename" : "pubkeys"
+	"certFilename" : "certs"
 }
