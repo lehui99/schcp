@@ -13,12 +13,12 @@ class CertificationManagement(object):
 
     def listHostnames(self):
         for hostname in self.certs:
-            print(hostname)
+            print(hostname.decode('iso-8859-1'))
 
     def removeHostname(self):
         sys.stdout.write('Input the hostname to be deleted: ')
         sys.stdout.flush()
-        hostname = sys.stdin.readline().strip().lower()
+        hostname = sys.stdin.readline().strip().lower().encode('iso-8859-1')
         del self.certs[hostname]
 
     def store(self):
