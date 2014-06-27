@@ -6,7 +6,7 @@ import os
 class CertificationManagement(object):
 
     def __init__(self, config):
-        f = open(config['certFilename'], 'r')
+        f = open(config['certFilename'], 'rb')
         self.certs = pickle.load(f)
         f.close()
         self.config = config
@@ -30,7 +30,7 @@ class CertificationManagement(object):
             os.rename(self.config['certFilename'], self.config['certFilename'] + '.bak')
         except Exception:
             pass
-        f = open(self.config['certFilename'], 'w')
+        f = open(self.config['certFilename'], 'wb')
         try:
             pickle.dump(self.certs, f)
             f.flush()

@@ -17,7 +17,7 @@ class CertificationStore(object):
 
     def __init__(self, config):
         try:
-            f = open(config['certFilename'], 'r')
+            f = open(config['certFilename'], 'rb')
             self.certs = pickle.load(f)
             f.close()
         except IOError:
