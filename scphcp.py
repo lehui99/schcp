@@ -98,31 +98,38 @@ class Tunnel(Pipe):
                 byteslen -= len(t)
             return buf
 
+        def tryOrd(b):
+            try:
+                return ord(b)
+            except TypeError:
+                return b
+
+        def recvSocksAddr(sock):
+            buf = sock.recv(1)  #   atyp
+            if buf == b'\x01':
+                hostname = recvFully(sock, 4)
+                buf += hostname
+                hostname = b'.'.join([str(tryOrd(b)).encode('iso-8859-1') for b in hostname])
+            elif buf == b'\x03':
+                hostnameLen = sock.recv(1)
+                buf += hostnameLen
+                hostname = recvFully(sock, ord(hostnameLen))
+                buf += hostname
+            elif buf == b'\x04':
+                hostname = recvFully(sock, 16)
+                buf += hostname
+                hostname = b':'.join([str(tryOrd(b)).encode('iso-8859-1') for b in hostname])
+            else:
+                raise Exception('Unknown atyp')
+            port = recvFully(sock, 2)
+            buf += port
+            port = tryOrd(port[0]) << 8 | tryOrd(port[1])
+            return buf, (hostname, port)
+
         def localHandshake():
             raise Exception('Not implemented yet')  #   TODO: Implement as local socks5 proxy
 
         def socksHandshake():
-
-            def recvSocksAddr(sock):
-                buf = sock.recv(1)  #   atyp
-                if buf == b'\x01':
-                    hostname = recvFully(sock, 4)
-                    buf += hostname
-                    hostname = b'.'.join([str(b).encode('iso-8859-1') for b in hostname])
-                elif buf == b'\x03':
-                    hostnameLen = sock.recv(1)
-                    buf += hostnameLen
-                    hostname = recvFully(sock, ord(hostnameLen))
-                    buf += hostname
-                elif buf == b'\x04':
-                    hostname = recvFully(sock, 16)
-                    buf += hostname
-                    hostname = b':'.join([str(b).encode('iso-8859-1') for b in hostname])
-                else:
-                    raise Exception('Unknown atyp')
-                buf += recvFully(sock, 2)
-                return buf, hostname
-
             clientBuf = b''
             clientBuf += self.client.recv(1) #   ver
             nmethods = self.client.recv(1)
@@ -143,7 +150,8 @@ class Tunnel(Pipe):
                 raise Exception('Non connect cmd not implemented yet')
             clientBuf += cmd
             clientBuf += self.client.recv(1) #   rsv
-            buf, hostname = recvSocksAddr(self.client)
+            buf, addr = recvSocksAddr(self.client)
+            self.hostname = addr[0]
             clientBuf += buf
             self.parent.send(clientBuf)
             parentBuf = b''
@@ -152,7 +160,7 @@ class Tunnel(Pipe):
             if rep != b'\x00':
                 logging.info('socksHandshake connect failed')
             parentBuf += self.parent.recv(1) #   rsv
-            buf, hostname = recvSocksAddr(self.parent)
+            buf, addr = recvSocksAddr(self.parent)
             parentBuf += buf
             self.client.send(parentBuf)
 
@@ -204,7 +212,7 @@ class Tunnel(Pipe):
         def sslCheckCertification(packet):
             if packet[5] != b'\x0b':
                 return
-            certLen = (ord(packet[12]) << 16) | (ord(packet[13]) << 8) | ord(packet[14])
+            certLen = (tryOrd(packet[12]) << 16) | (tryOrd(packet[13]) << 8) | tryOrd(packet[14])
             cert = packet[15 : 15 + certLen]
             raise Exception('Not implemented yet')  #   TODO: verify certification
 
@@ -212,10 +220,10 @@ class Tunnel(Pipe):
             missDataLen = 5 - len(data)
             if missDataLen > 0:
                 data += recvFully(sock, missDataLen)
-            missDataLen = 5 + ((ord(data[3]) << 8) | ord(data[4])) - len(data)
+            missDataLen = 5 + ((tryOrd(data[3]) << 8) | tryOrd(data[4])) - len(data)
             if missDataLen > 0:
                 data += recvFully(sock, missDataLen)
-            packetLen = 5 + ((ord(data[3]) << 8) | ord(data[4]))
+            packetLen = 5 + ((tryOrd(data[3]) << 8) | tryOrd(data[4]))
             return data[ : packetLen], data[packetLen : ]
 
         self.parent = socket.socket()
