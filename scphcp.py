@@ -28,31 +28,33 @@ class CertificationStore(object):
     def getCert(self, hostname):
         return self.certs[hostname.lower()]
 
-    def storeCert(self, hostname, cert):
-        self.certs[hostname.lower()] = cert
-        self.lock.acquire()
-        try:
-            os.remove(self.config['certFilename'] + '.bak')
-        except Exception:
-            pass
-        try:
-            os.rename(self.config['certFilename'], self.config['certFilename'] + '.bak')
-        except Exception:
-            pass
-        try:
-            f = open(self.config['certFilename'], 'w')
-            pickle.dump(self.certs, f)
-            f.close()
-        finally:
-            self.lock.release()
-
     def checkCert(self, hostname, cert):
         hostname = hostname.lower()
-        if hostname in self.certs:
-            if self.certs[hostname] != cert:
-                raise Exception('Certification changed')
-        else:
-            self.storeCert(hostname, cert)
+        self.lock.acquire()
+        try:
+            if hostname in self.certs:
+                if self.certs[hostname] != cert:
+                    errmsg = b'Certification changed for hostname %s' % hostname
+                    logging.warning(errmsg)
+                    raise Exception(errmsg)
+            else:
+                self.certs[hostname] = cert
+                try:
+                    os.remove(self.config['certFilename'] + '.bak')
+                except Exception:
+                    pass
+                try:
+                    os.rename(self.config['certFilename'], self.config['certFilename'] + '.bak')
+                except Exception:
+                    pass
+                f = open(self.config['certFilename'], 'w')
+                try:
+                    pickle.dump(self.certs, f)
+                    f.flush()
+                finally:
+                    f.close()
+        finally:
+            self.lock.release()
 
 class ProxyType:
     NONE = 0
