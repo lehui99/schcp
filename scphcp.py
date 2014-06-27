@@ -24,11 +24,11 @@ class PublicKeyStore(object):
         self.config = config
         self.lock = Lock()
 
-    def getKey(self, hostname, port):
-        return self.keys[hostname][port]
+    def getKey(self, hostname):
+        return self.keys[hostname]
 
-    def storeKey(self, hostname, port, key):
-        self.keys[hostname][port] = key
+    def storeKey(self, hostname, key):
+        self.keys[hostname] = key
         self.lock.acquire()
         try:
             os.remove(config['pubKeysFilename'] + '.bak')
@@ -38,10 +38,12 @@ class PublicKeyStore(object):
             os.rename(config['pubKeysFilename'], config['pubKeysFilename'] + '.bak')
         except Exception:
             pass
-        f = open(config['pubKeysFilename'], 'w')
-        pickle.dump(self.keys, f)
-        f.close()
-        self.lock.release()
+        try:
+            f = open(config['pubKeysFilename'], 'w')
+            pickle.dump(self.keys, f)
+            f.close()
+        finally:
+            self.lock.release()
 
 class ProxyType:
     NONE = 0
@@ -96,8 +98,63 @@ class Tunnel(Pipe):
                 byteslen -= len(t)
             return buf
 
+        def localHandshake():
+            raise Exception('Not implemented yet')  #   TODO: Implement as local socks5 proxy
+
         def socksHandshake():
-            raise Exception('Not implemented yet')  #   TODO:
+
+            def recvSocksAddr(sock):
+                buf = sock.recv(1)  #   atyp
+                if buf == b'\x01':
+                    hostname = recvFully(sock, 4)
+                    buf += hostname
+                    hostname = b'.'.join([str(b).encode('iso-8859-1') for b in hostname])
+                elif buf == b'\x03':
+                    hostnameLen = sock.recv(1)
+                    buf += hostnameLen
+                    hostname = recvFully(sock, ord(hostnameLen))
+                    buf += hostname
+                elif buf == b'\x04':
+                    hostname = recvFully(sock, 16)
+                    buf += hostname
+                    hostname = b':'.join([str(b).encode('iso-8859-1') for b in hostname])
+                else:
+                    raise Exception('Unknown atyp')
+                buf += recvFully(sock, 2)
+                return buf, hostname
+
+            clientBuf = b''
+            clientBuf += self.client.recv(1) #   ver
+            nmethods = self.client.recv(1)
+            clientBuf += nmethods
+            clientBuf += recvFully(self.client, ord(nmethods))
+            self.parent.send(clientBuf)
+            parentBuf = b''
+            parentBuf += self.parent.recv(1) #   ver
+            method = self.parent.recv(1)
+            if method != b'\x00':
+                raise Exception('Non no-authentication socks protocol not implemented yet')
+            parentBuf += method
+            self.client.send(parentBuf)
+            clientBuf = b''
+            clientBuf += self.client.recv(1) #   ver
+            cmd = self.client.recv(1)
+            if cmd != b'\x01':
+                raise Exception('Non connect cmd not implemented yet')
+            clientBuf += cmd
+            clientBuf += self.client.recv(1) #   rsv
+            buf, hostname = recvSocksAddr(self.client)
+            clientBuf += buf
+            self.parent.send(clientBuf)
+            parentBuf = b''
+            parentBuf += self.parent.recv(1) #   ver
+            rep = self.parent.recv(1)
+            if rep != b'\x00':
+                logging.info('socksHandshake connect failed')
+            parentBuf += self.parent.recv(1) #   rsv
+            buf, hostname = recvSocksAddr(self.parent)
+            parentBuf += buf
+            self.client.send(parentBuf)
 
         def connectHandshake():
 
@@ -121,8 +178,7 @@ class Tunnel(Pipe):
             method, host, protocol = re.split(b'\\s+', request[ : request.index(b'\r\n')])    #   Although not meets RFC, it's no matter.  Because it's a local proxy.
             if method.upper() != b'CONNECT':
                 raise Exception('Not a CONNECT(HTTPS) proxy.')
-            self.hostname, self.port = host.split(b':')
-            self.port = int(self.port)
+            self.hostname, port = host.split(b':')
             self.parent.send(request)
             response, parentData = recvHeaderFully(self.parent)
             self.client.send(response)
@@ -164,10 +220,10 @@ class Tunnel(Pipe):
 
         self.parent = socket.socket()
         try:
-            if self.config['parentProxyHost'] != None:
+            if self.config['parentProxyType'] != ProxyType.NONE:
                 self.parent.connect((self.config['parentProxyHost'], self.config['parentProxyPort']))
             if self.config['parentProxyType'] == ProxyType.NONE:
-                raise Exception('Not implemented yet')  #   TODO: Implement as local socks5 proxy
+                localHandshake()
                 clientData = b''
                 parentData = b''
             elif self.config['parentProxyType'] == ProxyType.SOCKS:
