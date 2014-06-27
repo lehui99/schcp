@@ -47,7 +47,7 @@ class CertificationStore(object):
                     os.rename(self.config['certFilename'], self.config['certFilename'] + '.bak')
                 except Exception:
                     pass
-                f = open(self.config['certFilename'], 'w')
+                f = open(self.config['certFilename'], 'wb')
                 try:
                     pickle.dump(self.certs, f)
                     f.flush()
