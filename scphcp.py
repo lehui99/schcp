@@ -11,39 +11,48 @@ from threading import Lock
 import sys
 import re
 import pickle
+import os
 
-class PublicKeyStore(object):
+class CertificationStore(object):
 
     def __init__(self, config):
         try:
-            f = open(config['pubKeysFilename'], 'r')
-            self.keys = pickle.load(f)
+            f = open(config['certFilename'], 'r')
+            self.certs = pickle.load(f)
             f.close()
         except IOError:
-            self.keys = {}
+            self.certs = {}
         self.config = config
         self.lock = Lock()
 
-    def getKey(self, hostname):
-        return self.keys[hostname]
+    def getCert(self, hostname):
+        return self.certs[hostname.lower()]
 
-    def storeKey(self, hostname, key):
-        self.keys[hostname] = key
+    def storeCert(self, hostname, cert):
+        self.certs[hostname.lower()] = cert
         self.lock.acquire()
         try:
-            os.remove(config['pubKeysFilename'] + '.bak')
+            os.remove(config['certFilename'] + '.bak')
         except Exception:
             pass
         try:
-            os.rename(config['pubKeysFilename'], config['pubKeysFilename'] + '.bak')
+            os.rename(config['certFilename'], config['certFilename'] + '.bak')
         except Exception:
             pass
         try:
-            f = open(config['pubKeysFilename'], 'w')
-            pickle.dump(self.keys, f)
+            f = open(config['certFilename'], 'w')
+            pickle.dump(self.certs, f)
             f.close()
         finally:
             self.lock.release()
+
+    def checkCert(self, hostname, cert):
+        hostname = hostname.lower()
+        if hostname in self.certs:
+            if self.certs[hostname] != cert:
+                raise Exception('Certification changed')
+        else:
+            self.storeCert(hostname, cert)
 
 class ProxyType:
     NONE = 0
@@ -80,11 +89,11 @@ class Pipe(Concurrent):
 
 class Tunnel(Pipe):
 
-    def __init__(self, config, client, pubKeyStore):
+    def __init__(self, config, client, certStore):
         Pipe.__init__(self)
         self.config = config
         self.client = client
-        self.pubKeyStore = pubKeyStore
+        self.certStore = certStore
 
     def run(self):
 
@@ -224,9 +233,9 @@ class Tunnel(Pipe):
         def sslCheckCertification(packet):
             if packet[5] != b'\x0b':
                 return
-            certLen = (tryOrd(packet[12]) << 16) | (tryOrd(packet[13]) << 8) | tryOrd(packet[14])
-            cert = packet[15 : 15 + certLen]
-            raise Exception('Not implemented yet')  #   TODO: verify certification
+            certChainLen = (tryOrd(packet[9]) << 16) | (tryOrd(packet[10]) << 8) | tryOrd(packet[11])
+            certChain = packet[12 : 12 + certChainLen]
+            self.certStore.checkCert(self.hostname, certChain)
 
         def sslGetPacket(sock, data):
             missDataLen = 5 - len(data)
@@ -279,26 +288,23 @@ class Main(object):
     def __init__(self, config):
         logging.basicConfig(filename = config['logFilename'], level = getattr(logging, config['logLevel']))
         config['parentProxyType'] = config['parentProxyType'].lower()
-        if config['parentProxyType'] == 'none':
-            config['parentProxyType'] = ProxyType.NONE
-        elif config['parentProxyType'] == 'socks':
-            config['parentProxyType'] = ProxyType.SOCKS
-        elif config['parentProxyType'] == 'connect':
-            config['parentProxyType'] = ProxyType.CONNECT
-        else:
-            logging.error('Unknown parentProxyType %s', config['parentProxyType'])
-            raise Exception('Unknown parentProxyType %s' % (config['parentProxyType'], ))
+        proxyTypeMap = {
+            'none' : ProxyType.NONE,
+            'socks' : ProxyType.SOCKS,
+            'connect' : ProxyType.CONNECT,
+            }
+        config['parentProxyType'] = proxyTypeMap[config['parentProxyType']]
         self.config = config
 
     def start(self):
         server = socket.socket()
         server.bind((self.config['proxyHost'], self.config['proxyPort']))
         server.listen(50)
-        pubKeyStore = PublicKeyStore(self.config)
+        certStore = CertificationStore(self.config)
         while True:
             try:
                 client, addr = server.accept()
-                Tunnel(self.config, client, pubKeyStore).start()
+                Tunnel(self.config, client, certStore).start()
             except Exception:
                 logging.exception('Exception in Main.start:')
 
