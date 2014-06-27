@@ -233,7 +233,7 @@ class Tunnel(Pipe):
             startParentClientPipe()
 
         def sslCheckCertification(packet):
-            if packet[5] != b'\x0b':
+            if tryOrd(packet[5]) != 0x0b:
                 return
             certChainLen = (tryOrd(packet[9]) << 16) | (tryOrd(packet[10]) << 8) | tryOrd(packet[11])
             certChain = packet[12 : 12 + certChainLen]
@@ -267,13 +267,13 @@ class Tunnel(Pipe):
                 assert(False)
             if clientData == b'':
                 clientData = self.client.recv(65536)
-            if clientData[0] != b'\x16':    #   Not SSL Handshake
+            if tryOrd(clientData[0]) != 0x16:    #   Not SSL Handshake
                 startPipe()
                 return
             startClientParentPipe()
             while True:
                 packet, parentData = sslGetPacket(self.parent, parentData)
-                if packet[0] == b'\x17':    #   Start SSL Application Data
+                if tryOrd(packet[0]) == 0x17:    #   Start SSL Application Data
                     self.client.send(packet)
                     break
                 sslCheckCertification(packet)
