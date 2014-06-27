@@ -32,15 +32,15 @@ class CertificationStore(object):
         self.certs[hostname.lower()] = cert
         self.lock.acquire()
         try:
-            os.remove(config['certFilename'] + '.bak')
+            os.remove(self.config['certFilename'] + '.bak')
         except Exception:
             pass
         try:
-            os.rename(config['certFilename'], config['certFilename'] + '.bak')
+            os.rename(self.config['certFilename'], self.config['certFilename'] + '.bak')
         except Exception:
             pass
         try:
-            f = open(config['certFilename'], 'w')
+            f = open(self.config['certFilename'], 'w')
             pickle.dump(self.certs, f)
             f.close()
         finally:
