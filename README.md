@@ -31,7 +31,7 @@ scphcp是为了防止证书颁发机构出现问题（比如被黑客入侵、�
 2. 增加管理证书的GUI。
 3. 增加设置界面的GUI，免除手动修改配置文件的麻烦。
 4. 增加自动设置IE代理的GUI。
-5. 打包成exe，方便直接诶下载使用。
+5. 打包成exe，方便直接下载使用。
 
 SSL Certification History Check Proxy
 ======
