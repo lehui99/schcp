@@ -89,7 +89,7 @@ class Tunnel(Pipe):
         def recvFully(sock, byteslen):
             buf = b''
             while byteslen != 0:
-                t += sock.recv(byteslen)
+                t = sock.recv(byteslen)
                 if t == b'':
                     raise Exception('End connection in socksHandshake')
                 buf += t
@@ -106,7 +106,7 @@ class Tunnel(Pipe):
                 idx = 0
                 buf = b''
                 while True:
-                    t = self.client.recv(65536)
+                    t = sock.recv(65536)
                     if t == b'':
                         raise Exception('End connection in connectHandshake')
                     buf += t
@@ -159,7 +159,7 @@ class Tunnel(Pipe):
             missDataLen = 5 + ((ord(data[3]) << 8) | ord(data[4])) - len(data)
             if missDataLen > 0:
                 data += recvFully(sock, missDataLen)
-            packetLen = 5 + helloLen
+            packetLen = 5 + ((ord(data[3]) << 8) | ord(data[4]))
             return data[ : packetLen], data[packetLen : ]
 
         self.parent = socket.socket()
@@ -186,10 +186,10 @@ class Tunnel(Pipe):
             startClientParentPipe()
             while True:
                 packet, parentData = sslGetPacket(self.parent, parentData)
-                if parentData[0] == b'\x17':    #   Start SSL Application Data
+                if packet[0] == b'\x17':    #   Start SSL Application Data
                     self.client.send(packet)
                     break
-                parentData = sslCheckCertification(packet)
+                sslCheckCertification(packet)
                 self.client.send(packet)
             startParentClientPipe()
         except Exception:
