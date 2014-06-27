@@ -127,7 +127,19 @@ class Tunnel(Pipe):
             return buf, (hostname, port)
 
         def localHandshake():
-            raise Exception('Not implemented yet')  #   TODO: Implement as local socks5 proxy
+            self.client.recv(1) #   ver
+            nmethods = self.client.recv(1)
+            recvFully(self.client, ord(nmethods))
+            self.client.send(b'\x05\x00')
+            self.client.recv(1) #   ver
+            cmd = self.client.recv(1)
+            if cmd != b'\x01':
+                raise Exception('Non connect cmd not implemented yet')
+            self.client.recv(1) #   rsv
+            buf, addr = recvSocksAddr(self.client)
+            self.parent.connect(addr)
+            self.hostname = addr[0]
+            self.client.send(b'\x05\x00\x00\x01\x00\x00\x00\x00\x00\x00')
 
         def socksHandshake():
             clientBuf = b''
