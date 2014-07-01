@@ -5,7 +5,7 @@ scphcp是为了防止证书颁发机构出现问题（比如被黑客入侵、�
 
 问与答
 -----
-1. 问：如何使用？<br />答：编辑config.json，填写上级代理的IP地址、端口和类型。之后启动scphcp.bat（Windows）或scphcp.sh（Linux）。之后设置浏览器代理即可，端口是config.json中的proxyPort。
+1. 问：如何使用？<br />答：编辑config.json，填写上级代理的IP地址、端口和类型到parentProxyHost、parentProxyPort和parentProxyType中。之后启动scphcp.bat（Windows）或scphcp.sh（Linux）。之后设置浏览器代理即可，端口是config.json中的proxyPort。
 2. 问：scphcp是什么类型的代理？HTTP代理还是SOCKS代理？<br />答：取决于config.json中的parentProxyType。如果是none或socks，则是socks代理；如果是connect，则是https代理（只能代理https，不能代理http。所以在浏览器中只设置https代理到scphcp的端口即可）。
 3. 问：parentProxyType中的none和socks有什么区别？<br />答：none表示不使用上级代理，scphcp会直连目标https网站；socks表示使用上级socks代理连接目标https网站。
 4. 问：是如何防止SSL劫持的？<br />答：首次访问某个https网站时，scphcp会将此网站的SSL证书保存在config.json中certFilename指定的文件中。之后再次访问此网站，scphcp会将此次网络传输中证书和保存在文件中的证书进行比对，如不同则会直接断开连接。所以首次访问时最好通过浏览器查看一下证书，保证证书是正确的，避免首次访问被劫持的问题。
