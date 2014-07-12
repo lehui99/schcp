@@ -34,7 +34,7 @@ class CertificationStore(object):
         try:
             if hostname in self.certs:
                 if self.certs[hostname] != cert:
-                    errmsg = b'Certification changed for hostname %s' % hostname
+                    errmsg = b'Certification changed for hostname ' + hostname
                     logging.warning(errmsg)
                     raise Exception(errmsg)
             else:
